@@ -1,7 +1,15 @@
-# LinkedIn Organisation Crawler
+# LinkedIn Organisation Crawler & Network Analysis
 
-Phase 1 of the Cyberyan AI-engineer assignment: a crawler that, given a company,
-finds it on LinkedIn, discovers its employees and extracts for each profile:
+The Cyberyan AI-engineer assignment in two phases:
+
+1. **Crawl:** given a company, find it on LinkedIn, discover its employees and
+   extract each profile (table below).
+2. **Analyse:** build the organisation's relationship graph, identify key people
+   (centrality, communities) and cluster roles by skills (TF-IDF + K-Means).
+   The results are in `output/report.md`, and the reasoning is in
+   [notes.md](notes.md).
+
+Extracted per profile:
 
 | Section | Fields |
 |---|---|
@@ -12,8 +20,9 @@ finds it on LinkedIn, discovers its employees and extracts for each profile:
 | Activity | post / repost / comment, author, text, relative time, reactions, comments, reposts |
 
 Built with **Playwright** (browser automation), **BeautifulSoup + lxml** (parsing),
-**Pydantic** (domain models), **pandas** (tabular export) and an optional
-**Redis** queue.
+**Pydantic** (domain models), **pandas** (tabular export), an optional
+**Redis** queue, and **networkx + scikit-learn + matplotlib** for the analysis
+(with a **Neo4j** import script).
 
 ---
 
@@ -28,8 +37,8 @@ playwright install chromium
 ```
 
 **1. Log in once** – a browser window opens; log in to LinkedIn by hand
-(complete any 2FA yourself), then press Enter in the terminal. The session is
-stored in `.browser-profile/` and reused by later runs.
+(complete any 2FA yourself). The crawler waits until your feed appears and then
+continues. The session is stored in `.browser-profile/` and reused by later runs.
 
 ```bash
 python -m li_crawler login
@@ -47,6 +56,12 @@ python -m li_crawler crawl "Cafe Bazaar" --sections main experience skills
 
 ```bash
 python -m li_crawler reparse
+```
+
+**4. Analyse** – graph, centrality, communities and role clusters (offline):
+
+```bash
+python -m li_crawler analyze
 ```
 
 **Run the tests**
@@ -70,33 +85,44 @@ data/
   activities.csv         one row per feed item   ┘
   profiles/<slug>.json   one document per profile
   raw/                   original HTML of every page (for offline re-parsing)
+
+output/                  (python -m li_crawler analyze)
+  report.md              findings: key people, strongest ties, communities, role clusters
+  graph.json             person graph + knowledge graph (node-link), metrics, clusters
+  graph.png              relationship graph (size = key score, colour = role cluster)
+  clusters.png           2-D map of the role clusters
+  neo4j/import.cypher    the knowledge graph as idempotent Cypher (MERGE) statements
 ```
 
 ## Architecture (hexagonal / ports & adapters)
 
 ```
                  ┌────────────────────────── application ──────────────────────────┐
-  CLI ──────────▶│  CrawlCompanyUseCase / ReparseUseCase                            │
- (inbound        │        │ depends only on ports (Protocols)                       │
-  adapter)       │        ▼                                                         │
-                 │  LinkedInGateway · LinkedInPageParser · ProfileRepository ·      │
-                 │  DatasetExporter · RawPageStore · TaskQueue · Throttle           │
+  CLI ──────────▶│  CrawlCompanyUseCase / ReparseUseCase / AnalyzeOrganisationUseCase│
+ (inbound        │        │ depends only on ports (Protocols)    ▲ uses analysis core │
+  adapter)       │        ▼                                      │ (graphs, centrality,│
+                 │  LinkedInGateway · LinkedInPageParser ·        │  clustering: pure)  │
+                 │  ProfileRepository · DatasetExporter · RawPageStore ·             │
+                 │  TaskQueue · Throttle · AnalysisReporter                          │
                  └────────┬──────────────────────────────────────────────────────────┘
                           │ implemented by (outbound adapters)
      PlaywrightLinkedInGateway · SoupLinkedInParser · JsonProfileRepository ·
-     FileDatasetExporter · FileRawPageStore · InMemory/RedisTaskQueue · PoliteThrottle
+     FileDatasetExporter · FileRawPageStore · InMemory/RedisTaskQueue · PoliteThrottle ·
+     GraphJsonWriter · ChartWriter · MarkdownReportWriter · CypherExporter
 ```
 
 ```
 src/li_crawler/
   domain/            entities (Profile, Experience, …) and errors – no dependencies
-  application/       ports.py (interfaces) + use_cases.py (workflows)
+  analysis/          graph building, centrality, clustering – pure computation, no I/O
+  application/       ports.py (interfaces), use_cases.py (crawl/reparse), analyze.py
   adapters/
     inbound/cli.py   command line
     outbound/
       playwright_gateway.py   browser: navigation, scrolling, login detection
       parsing/                one module per page type + text rules
       storage/                JSON repository, raw HTML store, CSV/JSON export
+      reporting/              graph.json, charts, report.md, Neo4j Cypher
       queues.py               in-memory and Redis task queues
       throttle.py             random delay + hourly request cap
   container.py       composition root – the only place that wires adapters to ports
@@ -159,7 +185,8 @@ Copy `.env.example` to `.env`. Every setting is optional:
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `LI_DATA_DIR` | `data` | output directory |
+| `LI_DATA_DIR` | `data` | crawled data directory |
+| `LI_OUTPUT_DIR` | `output` | analysis results directory |
 | `LI_BROWSER_PROFILE_DIR` | `.browser-profile` | persistent browser profile (session) |
 | `LI_BROWSER_CHANNEL` | `chrome` | `chrome` = installed Chrome, empty = bundled Chromium |
 | `LI_HEADLESS` | `false` | hide the browser window |
