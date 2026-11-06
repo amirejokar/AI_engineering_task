@@ -1,0 +1,10 @@
+playwright>=1.47
+beautifulsoup4>=4.12
+lxml>=5.2
+pydantic>=2.7
+pandas>=2.2
+python-dotenv>=1.0
+# optional: Redis-backed queue
+redis>=5.0
+# dev
+pytest>=8.0
