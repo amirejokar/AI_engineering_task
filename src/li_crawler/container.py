@@ -11,6 +11,7 @@ from li_crawler.adapters.outbound.storage import (
 )
 from li_crawler.adapters.outbound.throttle import PoliteThrottle
 from li_crawler.application import CrawlCompanyUseCase, ReparseUseCase
+from li_crawler.application.analyze import AnalyzeOrganisationUseCase
 from li_crawler.application.ports import LinkedInGateway, TaskQueue
 from li_crawler.config import Settings
 
@@ -32,6 +33,15 @@ def build_crawl_use_case(settings: Settings, gateway: LinkedInGateway) -> CrawlC
         throttle=PoliteThrottle(
             settings.min_delay_s, settings.max_delay_s, settings.max_requests_per_hour
         ),
+    )
+
+
+def build_analyze_use_case(settings: Settings) -> AnalyzeOrganisationUseCase:
+    from li_crawler.adapters.outbound.reporting import file_reporters  # heavy: matplotlib
+
+    return AnalyzeOrganisationUseCase(
+        repository=JsonProfileRepository(settings.profiles_dir),
+        reporter=file_reporters(settings.output_dir),
     )
 
 

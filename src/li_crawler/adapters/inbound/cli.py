@@ -4,6 +4,7 @@ python -m li_crawler login
 python -m li_crawler crawl "Cafe Bazaar" --max-profiles 10
 python -m li_crawler crawl https://www.linkedin.com/company/cafebazaar/
 python -m li_crawler reparse
+python -m li_crawler analyze
 """
 
 from __future__ import annotations
@@ -67,6 +68,18 @@ def _reparse(_: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
+def _analyze(_: argparse.Namespace, settings: Settings) -> int:
+    result = container.build_analyze_use_case(settings).execute()
+    print(f"\nAnalysed {len(result.profiles)} profiles -> {settings.output_dir.resolve()}")
+    print("Key people:")
+    for row in result.centrality[:3]:
+        print(f"  {row.label:<25} key score {row.key_score:.2f}")
+    print(f"Role clusters (k={result.clustering.k}):")
+    for cluster in result.clustering.clusters:
+        print(f"  {', '.join(cluster.top_terms[:3]):<35} {len(cluster.members)} people")
+    return 0
+
+
 # -- wiring ------------------------------------------------------------------
 
 
@@ -94,6 +107,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
     reparse = commands.add_parser("reparse", help="rebuild the dataset from saved HTML (offline)")
     reparse.set_defaults(handler=_reparse)
+
+    analyze = commands.add_parser(
+        "analyze", help="graph, centrality and clustering analysis of the crawled profiles"
+    )
+    analyze.set_defaults(handler=_analyze)
     return parser
 
 

@@ -17,6 +17,7 @@ QueueBackend = Literal["memory", "redis"]
 @dataclass(frozen=True)
 class Settings:
     data_dir: Path = Path("data")
+    output_dir: Path = Path("output")
     browser: BrowserSettings = field(default_factory=BrowserSettings)
     min_delay_s: float = 4.0
     max_delay_s: float = 9.0
@@ -46,6 +47,7 @@ class Settings:
         )
         return cls(
             data_dir=Path(env("LI_DATA_DIR", str(defaults.data_dir))),
+            output_dir=Path(env("LI_OUTPUT_DIR", str(defaults.output_dir))),
             browser=browser,
             min_delay_s=float(env("LI_MIN_DELAY_S", defaults.min_delay_s)),
             max_delay_s=float(env("LI_MAX_DELAY_S", defaults.max_delay_s)),

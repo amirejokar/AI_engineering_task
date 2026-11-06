@@ -15,6 +15,9 @@ dependencies = [
     "pydantic>=2.7",
     "pandas>=2.2",
     "python-dotenv>=1.0",
+    "networkx>=3.3",
+    "scikit-learn>=1.5",
+    "matplotlib>=3.9",
 ]
 
 [project.optional-dependencies]
