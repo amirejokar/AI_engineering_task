@@ -8,9 +8,12 @@ plugged in by the composition root (`li_crawler.container`).
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from li_crawler.domain import Company, CrawlTask, EmployeeRef, Profile, ProfileSection
+
+if TYPE_CHECKING:
+    from li_crawler.analysis import AnalysisResult
 
 
 class LinkedInGateway(Protocol):
@@ -69,6 +72,12 @@ class TaskQueue(Protocol):
     def pop(self) -> CrawlTask | None: ...
 
     def __len__(self) -> int: ...
+
+
+class AnalysisReporter(Protocol):
+    """Publishes an analysis (graph files, charts, report, database export...)."""
+
+    def publish(self, result: AnalysisResult) -> None: ...
 
 
 class Throttle(Protocol):
