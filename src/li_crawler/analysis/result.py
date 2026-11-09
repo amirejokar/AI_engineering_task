@@ -16,8 +16,7 @@ class AnalysisResult:
     profiles: list[Profile]
     knowledge_graph: nx.Graph
     person_graph: nx.Graph
-    centrality: list[PersonCentrality]
-    """Sorted by key_score, highest first."""
+    centrality: list[PersonCentrality]  # sorted, highest key_score first
     clustering: ClusteringResult
     weights: EdgeWeights
     reference_date: datetime
@@ -30,7 +29,7 @@ class AnalysisResult:
 
     @property
     def organisation_key(self) -> str | None:
-        """The company node most people are linked to (the crawled employer)."""
+        # the company most people are connected to, i.e. the one we crawled
         kg = self.knowledge_graph
         companies = [n for n, d in kg.nodes(data=True) if d["kind"] == COMPANY]
         return max(companies, key=kg.degree) if companies else None

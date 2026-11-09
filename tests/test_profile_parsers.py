@@ -61,8 +61,7 @@ def test_empty_section_placeholder_is_ignored():
 
 
 def test_lazy_loaded_batches_are_all_collected():
-    """Scrolling appends each new batch of entries in its own container."""
-
+    # each batch loaded by scrolling sits in its own container
     def batch(*names):
         entries = "<div><hr></div>".join(
             f"<div><p>{n}</p><p>1 endorsement</p></div>" for n in names

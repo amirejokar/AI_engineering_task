@@ -1,5 +1,3 @@
-"""Neo4j import script for the knowledge graph (run it in Neo4j Browser or cypher-shell)."""
-
 from __future__ import annotations
 
 import json
@@ -44,7 +42,7 @@ class CypherExporter:
 
 
 def _literal(value: object) -> str:
-    """JSON string/number/list literals are valid Cypher literals."""
+    # a JSON string/number/list is also a valid Cypher literal
     return json.dumps(value, ensure_ascii=False)
 
 

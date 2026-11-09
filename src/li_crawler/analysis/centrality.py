@@ -1,16 +1,3 @@
-"""Who are the key people? Several centrality views plus community detection.
-
-* strength     - weighted degree: how strongly a person is tied to everyone else
-* betweenness  - how often a person lies on the shortest path between others
-                 (distance = 1 / weight): brokers between groups
-* eigenvector  - connected to people who are themselves well connected
-* bridging     - betweenness in the knowledge graph: people who link the
-                 organisation to many outside companies, schools and accounts
-
-`key_score` is the mean of the person's percentile rank on strength,
-betweenness and eigenvector, so no single metric dominates.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -34,6 +21,7 @@ class PersonCentrality:
 
 
 def person_centrality(person_graph: nx.Graph, knowledge_graph: nx.Graph) -> list[PersonCentrality]:
+    # shortest-path metrics need a distance, and a strong tie should mean a short one
     graph = person_graph.copy()
     for _, _, data in graph.edges(data=True):
         data["distance"] = 1.0 / data["weight"]
@@ -44,6 +32,7 @@ def person_centrality(person_graph: nx.Graph, knowledge_graph: nx.Graph) -> list
     bridging = _person_bridging(knowledge_graph)
     communities = _communities(graph)
 
+    # the metrics have very different scales, so average their ranks instead of raw values
     ranks = [_percentile_ranks(m) for m in (strength, betweenness, eigenvector)]
     rows = [
         PersonCentrality(
@@ -72,6 +61,7 @@ def _eigenvector(graph: nx.Graph) -> dict[str, float]:
 
 
 def _person_bridging(knowledge_graph: nx.Graph) -> dict[str, float]:
+    # betweenness in the full graph: high for people with many links nobody else has
     betweenness = nx.betweenness_centrality(knowledge_graph, normalized=True)
     return {
         node: value
@@ -87,7 +77,7 @@ def _communities(graph: nx.Graph) -> dict[str, int]:
 
 
 def _percentile_ranks(metric: dict[str, float]) -> dict[str, float]:
-    """0 = lowest, 1 = highest; ties share the average rank."""
+    # 0 = lowest, 1 = highest, ties get the average rank
     values = sorted(metric.values())
     n = len(values)
     if n <= 1:

@@ -1,5 +1,3 @@
-"""File-based `ProfileRepository`: one JSON document per profile."""
-
 from __future__ import annotations
 
 from pathlib import Path

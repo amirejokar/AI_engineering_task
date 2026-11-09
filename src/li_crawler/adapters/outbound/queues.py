@@ -1,5 +1,3 @@
-"""Task queue adapters: in-memory (default) and Redis (for distributed workers)."""
-
 from __future__ import annotations
 
 from collections import deque
@@ -32,11 +30,7 @@ class InMemoryTaskQueue:
 
 
 class RedisTaskQueue:
-    """FIFO list of JSON tasks plus a SET for de-duplication.
-
-    Several crawler processes can share one Redis and consume the same queue.
-    """
-
+    # a list of JSON tasks + a set of seen slugs, so several workers can share it
     def __init__(self, client: Redis, namespace: str = "li_crawler") -> None:
         self._redis = client
         self._queue_key = f"{namespace}:tasks"

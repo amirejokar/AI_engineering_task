@@ -1,6 +1,3 @@
-"""Use-case tests with in-memory fakes: no browser, no network, no disk writes
-except pytest's tmp_path. This is what the hexagonal split buys us."""
-
 import pytest
 
 from li_crawler.adapters.outbound.parsing import SoupLinkedInParser

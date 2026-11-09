@@ -1,5 +1,3 @@
-"""Use case: analyse the crawled organisation and publish the results."""
-
 from __future__ import annotations
 
 import logging
@@ -22,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class NotEnoughDataError(CrawlerError):
-    """Analysis needs at least a few crawled profiles."""
+    pass
 
 
 class AnalyzeOrganisationUseCase:
@@ -45,7 +43,7 @@ class AnalyzeOrganisationUseCase:
                 f"Found {len(profiles)} profiles; crawl at least {self.MIN_PROFILES} first."
             )
 
-        # "Present" is measured against the crawl date, so results are reproducible.
+        # use the crawl date as "today" so re-running gives the same numbers
         reference = max(p.scraped_at for p in profiles)
         facts = extract_facts(profiles, reference)
         knowledge_graph = build_knowledge_graph(facts)

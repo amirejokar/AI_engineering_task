@@ -1,9 +1,3 @@
-"""report.md: the analysis written up for a human reader.
-
-Every sentence is generated from the data, so the report stays correct when the
-crawl is re-run on another organisation.
-"""
-
 from __future__ import annotations
 
 from collections import Counter, defaultdict
@@ -34,9 +28,6 @@ class MarkdownReportWriter:
         ]
         self._path.parent.mkdir(parents=True, exist_ok=True)
         self._path.write_text("\n\n".join(sections) + "\n", encoding="utf-8")
-
-
-# -- sections ------------------------------------------------------------------
 
 
 def _title(r: AnalysisResult) -> str:
@@ -202,9 +193,6 @@ def _limitations() -> str:
     )
 
 
-# -- helpers -------------------------------------------------------------------
-
-
 def _sorted_edges(graph: nx.Graph) -> list[tuple[str, str, dict]]:
     return sorted(graph.edges(data=True), key=lambda e: e[2]["weight"], reverse=True)
 
@@ -252,7 +240,6 @@ def _breadth(r: AnalysisResult, person: str) -> str:
 
 
 def _cell(text: str) -> str:
-    """Make text safe inside a Markdown table cell."""
     return " ".join(text.replace("|", "/").split())
 
 

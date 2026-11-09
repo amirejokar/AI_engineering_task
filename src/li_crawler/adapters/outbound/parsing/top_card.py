@@ -1,5 +1,3 @@
-"""Parser for the main profile page: name, headline, location, counts, About."""
-
 from __future__ import annotations
 
 import re
@@ -73,7 +71,6 @@ def _name_from_title(soup: BeautifulSoup) -> str | None:
 
 
 def _top_card_section(soup: BeautifulSoup, name: str | None) -> Tag | None:
-    """The innermost <section> around the name heading."""
     headings = main_region(soup).find_all(["h1", "h2"])
     heading = next((h for h in headings if name and clean(h.get_text(" ")) == name), None)
     heading = heading or (headings[0] if headings else None)
@@ -89,7 +86,7 @@ def _headline(lines: list[str]) -> str | None:
 
 
 def _location(lines: list[str]) -> str | None:
-    """The location sits just before the "· Contact info" link."""
+    # the location is the line right before "· Contact info"
     if "Contact info" not in lines:
         return None
     index = lines.index("Contact info") - 1

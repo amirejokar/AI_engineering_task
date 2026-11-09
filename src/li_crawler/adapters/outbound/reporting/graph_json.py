@@ -1,5 +1,3 @@
-"""graph.json: both graphs (node-link format) plus metrics and clusters."""
-
 from __future__ import annotations
 
 import json

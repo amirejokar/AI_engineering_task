@@ -1,18 +1,11 @@
-"""Generic, structure-based DOM helpers (BeautifulSoup + lxml).
-
-LinkedIn's markup uses hashed class names that change between deployments, so
-nothing here relies on classes. We rely on stable signals instead: semantic
-tags (main/section/p/li/hr), headings, link URLs and visible text.
-"""
-
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
 
 from bs4 import BeautifulSoup, Tag
 
-_INVISIBLE_RE = re.compile(r"[​﻿]")  # zero-width space / BOM (keep ZWNJ: used in Persian)
+# zero-width space and BOM. ZWNJ (‌) is kept on purpose, Persian text needs it.
+_INVISIBLE_RE = re.compile("[​﻿]")
 _SPACES_RE = re.compile(r"[ \t\r\f\v\xa0]+")
 _EMPTY_STATE_RE = re.compile(r"\bwill appear here\b", re.IGNORECASE)
 
@@ -26,13 +19,12 @@ def clean(text: str) -> str:
 
 
 def text_lines(element: Tag) -> list[str]:
-    """Visible text split into non-empty lines (one per text node)."""
     lines = (clean(line) for line in element.get_text("\n").split("\n"))
     return [line for line in lines if line]
 
 
 def rich_text(element: Tag) -> str:
-    """Text of an element, keeping <br> as line breaks but inline tags inline."""
+    # like get_text(), but only <br> starts a new line (links/hashtags stay inline)
     parts: list[str] = []
     for node in element.descendants:
         if isinstance(node, Tag):
@@ -45,7 +37,6 @@ def rich_text(element: Tag) -> str:
 
 
 def leaf_paragraphs(root: Tag) -> list[Tag]:
-    """<p> elements that do not contain other <p> elements, in document order."""
     return [p for p in root.find_all("p") if p.find("p") is None and clean(p.get_text(" "))]
 
 
@@ -62,7 +53,6 @@ def main_region(soup: BeautifulSoup) -> Tag:
 
 
 def find_section(soup: BeautifulSoup, heading: str) -> Tag | None:
-    """The first <section> whose heading (h1/h2/h3/p) equals `heading`."""
     wanted = heading.casefold()
     for section in main_region(soup).find_all("section"):
         for candidate in section.find_all(["h1", "h2", "h3", "p"], limit=4):
@@ -72,14 +62,8 @@ def find_section(soup: BeautifulSoup, heading: str) -> Tag | None:
 
 
 def split_entries(section: Tag) -> list[Tag]:
-    """Split a details section into one element per entry.
-
-    LinkedIn separates list entries with <hr>. An entries container is the
-    first ancestor of an <hr> whose earlier children already hold an entry.
-    Lazy-loaded batches ("load more" on scroll) are appended in *separate*
-    containers, so entries are collected from every container found.
-    A section without <hr> holds a single entry.
-    """
+    # Entries are separated by <hr>. Each batch that loads while scrolling sits in
+    # its own container, so collect the children of every container we find.
     hrs = section.find_all("hr")
     if not hrs:
         return [] if is_empty_state(section) else [section]
@@ -99,11 +83,12 @@ def split_entries(section: Tag) -> list[Tag]:
 
 
 def is_empty_state(element: Tag) -> bool:
-    """LinkedIn's empty-section placeholder ("Education that X adds will appear here")."""
+    # e.g. "Education that X adds will appear here."
     return bool(_EMPTY_STATE_RE.search(clean(element.get_text(" "))))
 
 
 def _entries_container(hr: Tag, boundary: Tag) -> Tag:
+    # walk up from the <hr> until there is an earlier sibling with text (the previous entry)
     node: Tag = hr
     while node.parent is not None and node is not boundary:
         if any(isinstance(s, Tag) and has_text(s) for s in node.previous_siblings):
@@ -122,8 +107,3 @@ def first_link(root: Tag, pattern: str) -> str | None:
 
 def strip_query(url: str) -> str:
     return url.split("?", 1)[0].split("#", 1)[0]
-
-
-def without(lines: Iterable[str], *unwanted: str) -> list[str]:
-    drop = {u.casefold() for u in unwanted}
-    return [line for line in lines if line.casefold() not in drop]

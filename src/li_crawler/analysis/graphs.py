@@ -1,19 +1,3 @@
-"""Build the two graphs the analysis works on.
-
-1. Knowledge graph (heterogeneous): Person, Company, School, Skill and Account
-   nodes with WORKED_AT / STUDIED_AT / HAS_SKILL / ENGAGED_WITH edges. It maps
-   one-to-one onto a Neo4j property graph.
-
-2. Person graph (projection): people only. An edge between two people
-   combines four kinds of evidence, each kept as an edge attribute so every
-   connection can be explained:
-
-   * colleague  - months they actually worked at the same company at the same time
-   * alumni     - schools they both attended
-   * skills     - Jaccard similarity of their skill sets
-   * engagement - external accounts whose posts both of them shared/reacted to
-"""
-
 from __future__ import annotations
 
 from collections import Counter, defaultdict
@@ -39,8 +23,8 @@ PERSON, COMPANY, SCHOOL, SKILL, ACCOUNT = "Person", "Company", "School", "Skill"
 
 @dataclass(frozen=True)
 class EdgeWeights:
-    """How much each kind of evidence contributes to a person-person edge."""
-
+    # Everyone works at the same company, so the colleague part is capped,
+    # otherwise it would dominate every edge and the graph is just a clique.
     colleague_per_year: float = 0.5
     colleague_cap: float = 1.5
     alumni_per_school: float = 1.0
@@ -52,8 +36,6 @@ class EdgeWeights:
 
 @dataclass
 class PersonFacts:
-    """Everything about one person that the graphs need, with resolved keys."""
-
     profile: Profile
     companies: dict[str, list[Interval]] = field(default_factory=lambda: defaultdict(list))
     company_names: dict[str, str] = field(default_factory=dict)

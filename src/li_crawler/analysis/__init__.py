@@ -1,9 +1,3 @@
-"""Analysis core: graph building, centrality and clustering.
-
-Pure computation on domain `Profile` objects (networkx, scikit-learn); no I/O.
-Reading profiles and writing reports go through application ports.
-"""
-
 from li_crawler.analysis.centrality import PersonCentrality, person_centrality
 from li_crawler.analysis.clustering import ClusteringResult, cluster_people
 from li_crawler.analysis.graphs import (

@@ -1,5 +1,3 @@
-"""Analysis reporters (AnalysisReporter port): JSON, charts, Markdown, Neo4j."""
-
 from __future__ import annotations
 
 from collections.abc import Sequence

@@ -1,12 +1,3 @@
-"""Command-line interface (driving adapter).
-
-python -m li_crawler login
-python -m li_crawler crawl "Cafe Bazaar" --max-profiles 10
-python -m li_crawler crawl https://www.linkedin.com/company/cafebazaar/
-python -m li_crawler reparse
-python -m li_crawler analyze
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -38,9 +29,6 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         logger.warning("Interrupted.")
         return 130
-
-
-# -- commands ----------------------------------------------------------------
 
 
 def _login(_: argparse.Namespace, settings: Settings) -> int:
@@ -80,9 +68,6 @@ def _analyze(_: argparse.Namespace, settings: Settings) -> int:
     return 0
 
 
-# -- wiring ------------------------------------------------------------------
-
-
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="li_crawler", description="LinkedIn organisation crawler")
     parser.add_argument("-v", "--verbose", action="store_true", help="debug logging")
@@ -116,11 +101,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _prompt_for_login() -> None:
-    print(
-        "\n>>> Log in to LinkedIn in the opened browser window"
-        " (complete any verification yourself). Waiting for the feed to appear...",
-        flush=True,
-    )
+    print("\nPlease log in to LinkedIn in the browser window, waiting...", flush=True)
 
 
 def _print_report(report: CrawlReport, settings: Settings) -> None:

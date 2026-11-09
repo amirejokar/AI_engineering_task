@@ -1,5 +1,3 @@
-"""Settings, read from environment variables (and an optional .env file)."""
-
 from __future__ import annotations
 
 import os
@@ -66,7 +64,6 @@ class Settings:
         cdp_url: str | None = None,
         queue_backend: QueueBackend | None = None,
     ) -> Settings:
-        """Apply command-line options; `None` keeps the configured value."""
         browser = self.browser
         if headless is not None:
             browser = replace(browser, headless=headless)

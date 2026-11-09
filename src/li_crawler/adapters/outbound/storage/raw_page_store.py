@@ -1,10 +1,3 @@
-"""File-based `RawPageStore`: keeps the original HTML of every fetched page.
-
-Layout:
-    <root>/listings/<name>.html
-    <root>/profiles/<slug>/<section>.html
-"""
-
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,15 +1,3 @@
-"""Parser for /in/<slug>/details/experience/.
-
-Two entry shapes exist:
-
-* single role -   [Title] [Company · Employment type] [Date range] [Location]  + description/skills
-* grouped roles - [Company] [Total duration]  then a <ul> with one <li> per role:
-                  [Title] [Employment type] [Date range] [Location]  + description/skills
-
-Each role is anchored on its date-range line; the element around that line is
-the role's header, everything else in the role is its body.
-"""
-
 from __future__ import annotations
 
 from bs4 import Tag
@@ -50,6 +38,8 @@ def parse_experience_page(html: str) -> list[Experience]:
 
 
 def _parse_entry(entry: Tag) -> list[Experience]:
+    # An entry is either one role ("Title / Company · Full-time / dates") or several
+    # roles at the same company: a "Company / total time" header plus a <ul> of roles.
     company_url = first_link(entry, _COMPANY_LINK)
     role_items = [li for li in entry.find_all("li") if _date_paragraph(li) is not None]
     if role_items:
@@ -75,7 +65,7 @@ def _date_paragraph(root: Tag) -> Tag | None:
 
 
 def _role_header(root: Tag, date_p: Tag) -> Tag:
-    """Smallest element around the date line that also contains the title."""
+    # smallest element around the date line that also has the title in it
     node = date_p.parent
     while node is not None and node is not root:
         first = leaf_paragraphs(node)[0]

@@ -1,5 +1,3 @@
-"""Parsers for listing pages: company search results and a company's People tab."""
-
 from __future__ import annotations
 
 import re
@@ -15,8 +13,8 @@ _NOISE = {"follow", "connect", "message", "following"}
 
 
 def parse_company_search(html: str) -> list[Company]:
-    """Each result has several links to the same company; the one with the most
-    text lines is the result card: [name, industry, location, Follow, summary...]."""
+    # A result has several links to the same company; the one with the most text is
+    # the card itself: name, industry, location, ...
     best_lines: dict[str, list[str]] = {}
     for anchor in main_region(make_soup(html)).find_all("a", href=_COMPANY_SLUG_RE):
         slug = _COMPANY_SLUG_RE.search(anchor["href"]).group("slug")
@@ -41,7 +39,6 @@ def parse_company_search(html: str) -> list[Company]:
 
 
 def parse_company_people(html: str) -> list[EmployeeRef]:
-    """People cards link to /in/<slug>/ with text "Name · 2nd Headline"."""
     people: dict[str, EmployeeRef] = {}
     for anchor in main_region(make_soup(html)).find_all("a", href=_PROFILE_SLUG_RE):
         slug = _PROFILE_SLUG_RE.search(anchor["href"]).group("slug")

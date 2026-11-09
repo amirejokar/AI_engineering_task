@@ -1,5 +1,3 @@
-"""Composition root: the only place that picks concrete adapters for each port."""
-
 from __future__ import annotations
 
 from li_crawler.adapters.outbound.parsing import SoupLinkedInParser
@@ -37,7 +35,8 @@ def build_crawl_use_case(settings: Settings, gateway: LinkedInGateway) -> CrawlC
 
 
 def build_analyze_use_case(settings: Settings) -> AnalyzeOrganisationUseCase:
-    from li_crawler.adapters.outbound.reporting import file_reporters  # heavy: matplotlib
+    # imported here so crawling doesn't pay for loading matplotlib
+    from li_crawler.adapters.outbound.reporting import file_reporters
 
     return AnalyzeOrganisationUseCase(
         repository=JsonProfileRepository(settings.profiles_dir),

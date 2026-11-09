@@ -1,13 +1,3 @@
-"""Parser for /in/<slug>/recent-activity/all/.
-
-Every feed item is a role="listitem" with a visually hidden "Feed post" <h2>.
-Text layout of an item:
-
-    [Actor "reposted this"]?  Author  [· 2nd]  [Headline]  3w [• Edited]  [Follow]
-    <post body ...>  [… more] [Show translation]
-    <reactions> <comments> <reposts>
-"""
-
 from __future__ import annotations
 
 import re
@@ -31,7 +21,7 @@ _VERBS = (
 )
 _ACTION_RE = re.compile(rf"^(?P<actor>.+?)\s+(?P<verb>{_VERBS})$", re.IGNORECASE)
 _VERB_ONLY_RE = re.compile(rf"^(?:{_VERBS})$", re.IGNORECASE)
-# The social-count buttons are identified by their aria-label; their text is the number.
+# aria-label prefix of each count button; the button text is the number
 _COUNT_BUTTONS = {"reactions": "reaction button", "comments": "comment", "reposts": "repost"}
 _NOISE = {
     FEED_ITEM_HEADING.casefold(),
@@ -56,6 +46,7 @@ def parse_activity_page(html: str, limit: int | None = None) -> list[Activity]:
 
 
 def _feed_items(root: Tag) -> list[Tag]:
+    # every post is a role="listitem" with a hidden "Feed post" heading
     items = []
     for item in root.find_all(attrs={"role": "listitem"}):
         heading = item.find("h2")
@@ -103,10 +94,7 @@ def _parse_item(item: Tag) -> Activity | None:
 
 
 def _action(lines: list[str]) -> tuple[ActivityKind, str | None, int]:
-    """Detect "<actor> reposted this" (on one line or split over two).
-
-    Returns (kind, actor, number of header lines consumed).
-    """
+    # "X reposted this" is sometimes one line, sometimes "X" + "reposted this"
     if match := _ACTION_RE.match(lines[0]):
         return _kind_from_verb(match.group("verb")), match.group("actor"), 1
     if len(lines) > 1 and _VERB_ONLY_RE.match(lines[1]):
@@ -124,10 +112,6 @@ def _kind_from_verb(verb: str) -> ActivityKind:
 
 
 def _social_counts(item: Tag) -> dict[str, int | None]:
-    """Read counts from the Reaction / Comment / Repost buttons.
-
-    A button without a number means zero; a missing button means unknown (None).
-    """
     counts: dict[str, int | None] = dict.fromkeys(_COUNT_BUTTONS)
     for button in item.find_all("button", attrs={"aria-label": True}):
         label = button["aria-label"].casefold()
@@ -138,7 +122,7 @@ def _social_counts(item: Tag) -> dict[str, int | None]:
 
 
 def _body(item: Tag, header_lines: list[str]) -> str | None:
-    """The post body is the longest paragraph that is not part of the header."""
+    # the post text is the longest paragraph outside the header
     header = set(header_lines)
     candidates = [
         text

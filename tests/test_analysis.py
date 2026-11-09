@@ -1,5 +1,3 @@
-"""Tests for the analysis core and the analyze use case (synthetic profiles)."""
-
 import json
 from datetime import UTC, datetime
 
@@ -77,9 +75,6 @@ def team():
     ]
 
 
-# -- timeline & keys ---------------------------------------------------------------
-
-
 def test_intervals_and_overlap():
     current = to_interval(dates((2025, 1)), NOW)
     assert current == (2025 * 12, 2026 * 12 + 10)
@@ -92,9 +87,6 @@ def test_entity_key_prefers_url():
     assert entity_key("company", "Acme Corp", ACME) == "company:acme"
     assert entity_key("company", "  Acme, Corp. ") == "company:acme corp"
     assert entity_key("company", None, None) is None
-
-
-# -- graphs -------------------------------------------------------------------------
 
 
 def test_knowledge_graph_nodes_and_relations(team):
@@ -127,9 +119,6 @@ def test_colleague_signal_is_capped(team):
     assert hr_pair["weight"] == pytest.approx(1.5)
 
 
-# -- centrality & clustering ----------------------------------------------------------
-
-
 def test_broker_has_highest_betweenness():
     graph = nx.Graph()
     for node in "abcde":
@@ -153,9 +142,6 @@ def test_clustering_separates_roles(team):
     assert frozenset({"dara", "elham"}) in groups
     assert result.k == 3 and set(result.silhouette_by_k) >= {2, 3}
     assert not any("acme" in term for c in result.clusters for term in c.top_terms)
-
-
-# -- use case + reporters --------------------------------------------------------------
 
 
 def test_analyze_use_case_writes_all_outputs(team, tmp_path):

@@ -1,5 +1,3 @@
-"""Rate limiting adapter: random delay between requests + hourly cap."""
-
 from __future__ import annotations
 
 import logging
@@ -14,9 +12,6 @@ _HOUR = 3600.0
 
 
 class PoliteThrottle:
-    """Waits a random `min_delay..max_delay` seconds between requests and never
-    exceeds `max_per_hour` requests in any sliding one-hour window."""
-
     def __init__(
         self,
         min_delay: float,

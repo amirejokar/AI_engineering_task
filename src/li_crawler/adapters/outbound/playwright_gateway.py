@@ -1,15 +1,3 @@
-"""Playwright implementation of the `LinkedInGateway` port.
-
-Session handling: the browser runs on a dedicated, persistent profile
-directory. The first time, a real browser window opens and *you* log in by
-hand; the session cookie is kept in that directory for later runs. The crawler
-never types credentials and never tries to get past a login wall or a security
-checkpoint - it stops and hands control back to the human.
-
-Alternatively it can attach to a Chrome you started yourself with
-`--remote-debugging-port` (see README).
-"""
-
 from __future__ import annotations
 
 import logging
@@ -34,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 _AUTH_WALL_MARKERS = ("/login", "/authwall", "/checkpoint", "/uas/", "/signup")
 
-# Upper bound of scroll rounds per page; scrolling stops earlier once nothing new loads.
+# max scroll rounds per page (we stop earlier when nothing new loads)
 _SCROLLS: dict[ProfileSection, int] = {
     ProfileSection.MAIN: 10,
     ProfileSection.EXPERIENCE: 8,
@@ -43,8 +31,8 @@ _SCROLLS: dict[ProfileSection, int] = {
     ProfileSection.ACTIVITY: 8,
 }
 
-# LinkedIn scrolls inside <main id="workspace">, not the window. Scroll whichever
-# element actually scrolls to its end; its scrollHeight grows while content loads.
+# LinkedIn scrolls inside <main id="workspace">, not the window, so mouse wheel
+# scrolling at the page level loads nothing. Scroll whatever element actually scrolls.
 _SCROLL_TO_END_JS = """
 () => {
   const main = document.querySelector('main');
@@ -57,13 +45,12 @@ _SCROLL_TO_END_JS = """
 
 _EXPAND_POSTS_JS = """
 () => {
-  let clicked = 0;
   for (const button of document.querySelectorAll('main button')) {
-    if (/^…\\s*more$/.test(button.innerText.trim())) { button.click(); clicked++; }
+    if (/^…\\s*more$/.test(button.innerText.trim())) button.click();
   }
-  return clicked;
 }
 """
+
 _COUNT_PROFILE_LINKS_JS = """
 () => new Set([...document.querySelectorAll('main a[href*="/in/"]')]
   .map(a => a.href.split('?')[0])).size
@@ -73,8 +60,7 @@ _COUNT_PROFILE_LINKS_JS = """
 @dataclass(frozen=True)
 class BrowserSettings:
     user_data_dir: Path = Path(".browser-profile")
-    channel: str | None = "chrome"
-    """"chrome" uses the installed Google Chrome; None uses Playwright's Chromium."""
+    channel: str | None = "chrome"  # None = Playwright's bundled Chromium
     headless: bool = False
     cdp_url: str | None = None
     navigation_timeout_ms: int = 45_000
@@ -83,11 +69,8 @@ class BrowserSettings:
     login_timeout_s: int = 600
 
 
-LoginPrompt = Callable[[], None]
-
-
 class PlaywrightLinkedInGateway:
-    def __init__(self, settings: BrowserSettings, login_prompt: LoginPrompt) -> None:
+    def __init__(self, settings: BrowserSettings, login_prompt: Callable[[], None]) -> None:
         self._settings = settings
         self._login_prompt = login_prompt
         self._playwright: Playwright | None = None
@@ -95,12 +78,11 @@ class PlaywrightLinkedInGateway:
         self._page: Page | None = None
         self._owns_context = True
 
-    # -- lifecycle ----------------------------------------------------------
-
     def __enter__(self) -> PlaywrightLinkedInGateway:
         self._playwright = sync_playwright().start()
         chromium = self._playwright.chromium
         if self._settings.cdp_url:
+            # attach to a Chrome the user started; don't close it when we're done
             browser = chromium.connect_over_cdp(self._settings.cdp_url)
             self._context = browser.contexts[0] if browser.contexts else browser.new_context()
             self._page = self._context.new_page()
@@ -133,11 +115,13 @@ class PlaywrightLinkedInGateway:
             if self._playwright is not None:
                 self._playwright.stop()
 
-    # -- LinkedInGateway port ------------------------------------------------
+    @property
+    def page(self) -> Page:
+        if self._page is None:
+            raise RuntimeError("use the gateway inside a `with` block")
+        return self._page
 
     def ensure_session(self) -> None:
-        """Open the feed; if LinkedIn shows a login page instead, wait for the
-        human to log in inside the browser window (we never type credentials)."""
         try:
             self.page.goto(FEED_URL, wait_until="domcontentloaded")
         except PlaywrightError as exc:
@@ -145,20 +129,17 @@ class PlaywrightLinkedInGateway:
         if self._is_logged_in():
             return
 
-        logger.warning("Not logged in to LinkedIn - waiting for a manual login.")
+        # the user logs in by hand in the open window; we just wait for the feed
+        logger.warning("Not logged in to LinkedIn, waiting for a manual login")
         self._login_prompt()
-        deadline_ms = self._settings.login_timeout_s * 1000
-        waited = 0
+        waited_ms = 0
         while not self._is_logged_in():
-            if waited >= deadline_ms:
-                raise AuthenticationRequiredError("Timed out waiting for a manual LinkedIn login.")
+            if waited_ms >= self._settings.login_timeout_s * 1000:
+                raise AuthenticationRequiredError("Timed out waiting for the LinkedIn login")
             self.page.wait_for_timeout(2_000)
-            waited += 2_000
-        logger.info("Login detected.")
+            waited_ms += 2_000
+        logger.info("Logged in")
         self._pause(self._settings.settle_ms)
-
-    def _is_logged_in(self) -> bool:
-        return "/feed" in self.page.url and not self._on_auth_wall()
 
     def company_search_page(self, query: str) -> str:
         self._goto(company_search_url(query))
@@ -182,50 +163,38 @@ class PlaywrightLinkedInGateway:
             self.page.wait_for_timeout(500)
         return self.page.content()
 
-    # -- helpers ------------------------------------------------------------
-
-    @property
-    def page(self) -> Page:
-        if self._page is None:
-            raise RuntimeError("Gateway is not started; use it as a context manager.")
-        return self._page
-
-    def _goto(self, url: str, *, check_auth: bool = True) -> None:
+    def _goto(self, url: str) -> None:
         logger.debug("GET %s", url)
         try:
             response = self.page.goto(url, wait_until="domcontentloaded")
             self.page.wait_for_selector("main", state="attached")
         except PlaywrightError as exc:
             if self._on_auth_wall():
-                raise AuthenticationRequiredError(
-                    f"Login/checkpoint page at {self.page.url}"
-                ) from exc
+                raise AuthenticationRequiredError(f"Got a login page at {self.page.url}") from exc
             raise PageLoadError(f"Failed to load {url}: {exc.message}") from exc
 
-        if check_auth and self._on_auth_wall():
+        if self._on_auth_wall():
             raise AuthenticationRequiredError(
-                f"LinkedIn redirected to {self.page.url}. "
-                "Log in again with: python -m li_crawler login"
+                f"Redirected to {self.page.url}, run `python -m li_crawler login` again"
             )
         if response is not None and response.status == 429:
-            raise PageLoadError(f"Rate limited (HTTP 429) at {url}")
+            raise PageLoadError(f"Rate limited (429) at {url}")
         self._pause(self._settings.settle_ms)
+
+    def _is_logged_in(self) -> bool:
+        return "/feed" in self.page.url and not self._on_auth_wall()
 
     def _on_auth_wall(self) -> bool:
         return any(marker in self.page.url for marker in _AUTH_WALL_MARKERS)
 
     def _scroll(self, max_rounds: int) -> None:
-        """Scroll until lazy-loaded content stops growing (or `max_rounds`).
-
-        Progress is measured by the scroll container's height: when it stops
-        growing for two rounds, everything has loaded.
-        """
-        previous, stable_rounds = -1, 0
+        # keep scrolling until the page height stops growing for two rounds
+        previous, unchanged = -1, 0
         for _ in range(max_rounds):
             height = self.page.evaluate(_SCROLL_TO_END_JS)
             self._pause(1_300)
-            stable_rounds = stable_rounds + 1 if height == previous else 0
-            if stable_rounds >= 2:
+            unchanged = unchanged + 1 if height == previous else 0
+            if unchanged >= 2:
                 break
             previous = height
 

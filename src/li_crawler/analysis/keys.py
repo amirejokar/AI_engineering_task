@@ -1,10 +1,3 @@
-"""Stable identifiers for entities that appear on many profiles.
-
-A company is identified by its LinkedIn URL when available (the same company
-can be written differently: "Cafe Bazaar", "CafeBazaar"), otherwise by its
-normalised name.
-"""
-
 from __future__ import annotations
 
 import re

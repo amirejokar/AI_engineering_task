@@ -1,10 +1,3 @@
-"""Parser for /in/<slug>/details/education/.
-
-Entry shape: [School] [Degree, Field] [Date range] [Grade: ..] [Activities and societies: ..]
-followed by an optional description and "Skills: ..." line. Every field but
-the school is optional, so lines are classified by their content.
-"""
-
 from __future__ import annotations
 
 from bs4 import Tag

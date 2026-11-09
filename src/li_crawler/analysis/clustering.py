@@ -1,15 +1,3 @@
-"""Cluster people into role groups from what they say they do.
-
-Each person becomes a document of their skills (each skill is one token, so
-"Machine Learning" stays one feature) plus the words of their job titles and
-headline. TF-IDF up-weights rare, specific skills; K-Means groups the vectors.
-
-Choosing k: silhouette scores are computed for every k from 2 up, and the best
-k >= `min_k` is used. k = 2 almost always just splits "engineering vs. the
-rest", which is true but not useful; the scores for all k are kept so the
-report can show that trade-off openly.
-"""
-
 from __future__ import annotations
 
 import re
@@ -25,10 +13,8 @@ from sklearn.metrics import silhouette_score
 
 from li_crawler.domain import Profile
 
-_STOP_WORDS = {
-    "at", "and", "of", "the", "in", "for", "|", "-", "&", "a", "an", "to", "with", "on",
-    "team", "senior", "junior", "lead", "intern", "co",
-}  # fmt: skip
+_STOP_WORDS = {"at", "and", "of", "the", "in", "for", "a", "an", "to", "with", "on", "co"}
+_SENIORITY = {"senior", "junior", "lead", "intern", "team"}
 _WORD_RE = re.compile(r"[\w#+.]+")
 _SKILL_PREFIX = "skill:"
 
@@ -45,31 +31,25 @@ class ClusteringResult:
     k: int
     silhouette: float | None
     silhouette_by_k: dict[int, float]
-    labels: dict[str, int]
-    """profile slug -> cluster id"""
+    labels: dict[str, int]  # slug -> cluster id
     clusters: list[Cluster]
-    coordinates: dict[str, tuple[float, float]]
-    """2-D projection (truncated SVD) for plotting."""
+    coordinates: dict[str, tuple[float, float]]  # 2D (SVD) positions for the plot
 
 
 def person_document(profile: Profile, ignore: frozenset[str] = frozenset()) -> str:
-    """Skills as single tokens + words from the headline and job titles.
-
-    `ignore` removes words such as the shared employer's name ("cafe bazaar"),
-    which say where people work, not what they do.
-    """
+    # each skill is one token ("machine_learning"), titles/headline are split into words
     skills = [_SKILL_PREFIX + "_".join(s.name.casefold().split()) for s in profile.skills]
     text = " ".join([profile.headline or ""] + [e.title for e in profile.experiences])
     words = [
         w
         for w in _WORD_RE.findall(text.casefold())
-        if w not in _STOP_WORDS and w not in ignore and len(w) > 1
+        if w not in _STOP_WORDS and w not in _SENIORITY and w not in ignore and len(w) > 1
     ]
     return " ".join(skills + words)
 
 
 def shared_company_words(profiles: Sequence[Profile]) -> frozenset[str]:
-    """Words from names of companies that appear on two or more profiles."""
+    # "cafe", "bazaar" etc. say where people work, not what they do
     counts = Counter(
         name for p in profiles for name in {(e.company or "").casefold() for e in p.experiences}
     )
@@ -87,6 +67,8 @@ def cluster_people(
     matrix = vectorizer.fit_transform([person_document(p, ignore) for p in profiles])
     terms = np.array(vectorizer.get_feature_names_out())
 
+    # k=2 usually has the best silhouette but only splits engineers from everyone
+    # else, so pick the best k >= min_k and keep all scores for the report
     scores = _silhouette_by_k(matrix, max_k, seed)
     candidates = {k: s for k, s in scores.items() if k >= min_k} or scores
     k = max(candidates, key=candidates.get) if candidates else 1
@@ -97,6 +79,7 @@ def cluster_people(
         members = [s for s, label in zip(slugs, model.labels_, strict=True) if label == cluster_id]
         top = terms[np.argsort(model.cluster_centers_[cluster_id])[::-1][:8]]
         clusters.append(Cluster(cluster_id, members, [_display(t) for t in top]))
+    # biggest cluster first, then renumber so ids match the order
     clusters.sort(key=lambda c: len(c.members), reverse=True)
     renumber = {c.id: new_id for new_id, c in enumerate(clusters)}
     clusters = [Cluster(renumber[c.id], c.members, c.top_terms) for c in clusters]

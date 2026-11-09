@@ -1,5 +1,3 @@
-"""Turn LinkedIn date ranges into month intervals and measure overlaps."""
-
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -7,8 +5,8 @@ from datetime import datetime
 
 from li_crawler.domain import DateRange
 
+# (start, end) in months since year 0, both inclusive
 Interval = tuple[int, int]
-"""Inclusive (start, end) as a month index: year * 12 + (month - 1)."""
 
 
 def month_index(year: int, month: int | None, *, default_month: int) -> int:
@@ -16,8 +14,7 @@ def month_index(year: int, month: int | None, *, default_month: int) -> int:
 
 
 def to_interval(date_range: DateRange | None, reference: datetime) -> Interval | None:
-    """Missing months default to January (start) / December (end);
-    "Present" ends at the reference date (when the data was scraped)."""
+    # missing month: January for a start, December for an end; "Present" ends at `reference`
     if date_range is None or date_range.start is None:
         return None
     start = month_index(date_range.start.year, date_range.start.month, default_month=1)
@@ -31,7 +28,7 @@ def to_interval(date_range: DateRange | None, reference: datetime) -> Interval |
 
 
 def merge(intervals: Iterable[Interval]) -> list[Interval]:
-    """Union of intervals, so two roles at one company are not double-counted."""
+    # two roles at the same company shouldn't count twice
     merged: list[Interval] = []
     for start, end in sorted(intervals):
         if merged and start <= merged[-1][1] + 1:
@@ -50,7 +47,6 @@ def overlap_months(a: Iterable[Interval], b: Iterable[Interval]) -> int:
 
 
 def format_month(index: int) -> str:
-    """Month index -> "YYYY-MM"."""
     return f"{index // 12:04d}-{index % 12 + 1:02d}"
 
 

@@ -1,5 +1,3 @@
-"""LinkedIn URL layout - shared by the browser gateway and the parser."""
-
 from __future__ import annotations
 
 from urllib.parse import quote

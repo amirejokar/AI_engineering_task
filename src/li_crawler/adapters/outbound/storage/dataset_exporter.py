@@ -1,16 +1,3 @@
-"""`DatasetExporter` that writes the analysis-ready dataset.
-
-Outputs (in `directory`):
-    profiles.json      - full nested documents (one list)
-    profiles.csv       - one row per person
-    experiences.csv    - one row per role         (key: profile_slug)
-    education.csv      - one row per school       (key: profile_slug)
-    skills.csv         - one row per skill        (key: profile_slug)
-    activities.csv     - one row per feed item    (key: profile_slug)
-
-CSV files use UTF-8 with BOM so Excel shows Persian text correctly.
-"""
-
 from __future__ import annotations
 
 import json

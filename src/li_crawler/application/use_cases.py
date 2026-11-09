@@ -1,5 +1,3 @@
-"""Application use cases: the crawler's workflows, written against ports only."""
-
 from __future__ import annotations
 
 import logging
@@ -35,8 +33,7 @@ ALL_SECTIONS: tuple[ProfileSection, ...] = tuple(ProfileSection)
 
 @dataclass(frozen=True)
 class CrawlRequest:
-    company: str
-    """Company name to search for, or a LinkedIn company URL."""
+    company: str  # name to search for, or a linkedin.com/company/... URL
     max_profiles: int = 10
     sections: tuple[ProfileSection, ...] = ALL_SECTIONS
 
@@ -51,11 +48,6 @@ class CrawlReport:
 
 
 class CrawlCompanyUseCase:
-    """Find a company, discover its employees, and crawl their profiles.
-
-    Pipeline:  resolve company -> list people -> enqueue -> (fetch -> store raw -> parse -> save)*
-    """
-
     def __init__(
         self,
         gateway: LinkedInGateway,
@@ -95,8 +87,6 @@ class CrawlCompanyUseCase:
 
         self._exporter.export(self._repository.list_all())
         return report
-
-    # -- steps -------------------------------------------------------------
 
     def _resolve_company(self, query: str) -> Company:
         if match := _COMPANY_URL_RE.search(query):
@@ -165,11 +155,7 @@ class CrawlCompanyUseCase:
 
 
 class ReparseUseCase:
-    """Rebuild the dataset from stored raw HTML - no network access needed.
-
-    Useful after improving the parser: crawl once, re-parse as often as needed.
-    """
-
+    # re-runs the parser over the saved HTML, so parser fixes don't need a new crawl
     def __init__(
         self,
         parser: LinkedInPageParser,

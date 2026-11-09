@@ -1,9 +1,3 @@
-"""Parser for /in/<slug>/details/skills/.
-
-Entry shape: [Skill name] [context, e.g. "3 experiences at Acme"]...
-             ["Passed LinkedIn Skill Assessment"] ["5 endorsements"]
-"""
-
 from __future__ import annotations
 
 import re

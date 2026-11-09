@@ -1,5 +1,3 @@
-"""BeautifulSoup/lxml implementation of the `LinkedInPageParser` port."""
-
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping

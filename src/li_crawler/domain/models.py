@@ -1,9 +1,3 @@
-"""Core domain entities.
-
-These models are the language of the whole system. They know nothing about
-LinkedIn's HTML, Playwright or storage formats - adapters translate to/from them.
-"""
-
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -17,8 +11,6 @@ class DomainModel(BaseModel):
 
 
 class ProfileSection(StrEnum):
-    """The parts of a profile we collect, each living on its own page."""
-
     MAIN = "main"
     EXPERIENCE = "experience"
     EDUCATION = "education"
@@ -56,8 +48,7 @@ class Company(DomainModel):
 
 
 class EmployeeRef(DomainModel):
-    """A person discovered on a company's "People" page, not yet crawled."""
-
+    # someone found on the company's People tab, not crawled yet
     slug: str
     url: str
     name: str | None = None
@@ -125,8 +116,6 @@ class Profile(DomainModel):
 
 
 class CrawlTask(DomainModel):
-    """A unit of work on the queue: crawl one profile."""
-
     slug: str
     company_slug: str | None = None
     attempts: int = 0

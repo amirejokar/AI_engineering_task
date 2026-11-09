@@ -1,9 +1,3 @@
-"""Text-level rules for LinkedIn's display formats (dates, counts, labels).
-
-LinkedIn obfuscates CSS class names, so the parser recognises content by its
-*shape* instead: "Jan 2022 - Present · 2 yrs" is a date range wherever it appears.
-"""
-
 from __future__ import annotations
 
 import re
@@ -56,8 +50,8 @@ _SKILLS_PREFIX_RE = re.compile(r"^\s*Skills\s*:\s*", re.IGNORECASE)
 _MORE_SKILLS_RE = re.compile(r"(?:,|\band)?\s*\+\d+\s+skills?\s*$", re.IGNORECASE)
 
 
+# handles "Oct 2022 - Present · 4 yrs 2 mos", "Aug 2021 – Nov 2025" and plain "2019"
 def parse_date_range(text: str) -> DateRange | None:
-    """Parse "Oct 2022 - Present · 4 yrs 2 mos", "Aug 2021 – Nov 2025" or "2019"."""
     match = _DATE_RANGE_RE.match(text.strip())
     if not match:
         return None
@@ -84,13 +78,13 @@ def _year_month(month_text: str | None, year_text: str | None) -> YearMonth | No
     month = None
     if month_text:
         month = MONTHS.get(month_text[:3].casefold())
-        if month is None:  # not a month name -> the whole thing is not a date
+        if month is None:  # e.g. "Fall 2020"
             return None
     return YearMonth(year=int(year_text), month=month)
 
 
 def parse_count(text: str | None) -> int | None:
-    """ "2,115" -> 2115, "500+" -> 500, "1.2K followers" -> 1200."""
+    # "2,115" -> 2115, "500+" -> 500, "1.2K" -> 1200
     if not text:
         return None
     match = _COUNT_RE.search(text)
@@ -111,7 +105,6 @@ def is_employment_type(text: str) -> bool:
 
 
 def split_company_line(text: str) -> tuple[str, str | None]:
-    """ "Acme Corp · Full-time" -> ("Acme Corp", "Full-time")."""
     parts = [p.strip() for p in text.split("·") if p.strip()]
     if len(parts) >= 2 and is_employment_type(parts[-1]):
         return " · ".join(parts[:-1]), parts[-1]
@@ -119,7 +112,6 @@ def split_company_line(text: str) -> tuple[str, str | None]:
 
 
 def split_location(text: str) -> tuple[str | None, str | None]:
-    """ "Tehran, Iran · Hybrid" -> ("Tehran, Iran", "Hybrid"); "Remote" -> (None, "Remote")."""
     parts = [p.strip() for p in text.split("·") if p.strip()]
     workplace = next((p for p in parts if p.casefold() in WORKPLACE_TYPES), None)
     places = [p for p in parts if p.casefold() not in WORKPLACE_TYPES]
@@ -127,22 +119,17 @@ def split_location(text: str) -> tuple[str | None, str | None]:
 
 
 def split_skills(text: str) -> list[str]:
-    """ "Skills: Android, Kotlin · Java, +5 skills" -> ["Android", "Kotlin", "Java"].
-
-    LinkedIn truncates long lists with "+N skills"; that marker is dropped.
-    """
     body = _SKILLS_PREFIX_RE.sub("", text.replace("\n", " ")).replace("Skills:", " ")
     body = _MORE_SKILLS_RE.sub("", body)
     return [s.strip() for s in re.split(r"[,·]", body) if s.strip()]
 
 
 def is_skills_line(text: str) -> bool:
-    """Both "Skills: A, B" and the short form "A, B and +11 skills"."""
+    # "Skills: A, B" or the truncated form "A, B and +11 skills"
     return "skills:" in text.casefold() or bool(_MORE_SKILLS_RE.search(text))
 
 
 def split_degree(text: str) -> tuple[str | None, str | None]:
-    """ "Bachelor's degree, Computer Engineering" -> (degree, field)."""
     parts = [p.strip() for p in text.split(",", 1)]
     if len(parts) == 2:
         return parts[0] or None, parts[1] or None
